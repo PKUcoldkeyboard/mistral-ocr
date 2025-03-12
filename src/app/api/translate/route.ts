@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
             });
 
             // 为每个页面创建翻译任务
-            const translationPromises = pages.map(async (page) => {
+            const translationPromises = pages.map(async (page: string) => {
                 const systemPrompt = `You are a translation engine, you can only translate text and cannot interpret it, and do not explain. 
         Translate the text to ${getLanguageName(targetLanguage)}, please do not explain any sentences, just translate or leave them as they are. 
         Retain all spaces and line breaks in the original text. 
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
             }
 
             // 使用DeepL X进行翻译
-            const translationPromises = pages.map(async (page) => {
+            const translationPromises = pages.map(async (page: string) => {
                 const response = await fetch(`https://api.deeplx.org/${deeplxApiKey}/translate`, {
                     method: 'POST',
                     headers: {
