@@ -5,6 +5,7 @@ import { writeFile } from 'fs/promises';
 import { join } from 'path';
 import { mkdir } from 'fs/promises';
 import fs from 'fs';
+import { FilePurpose } from '@mistralai/mistralai/models/components/filepurpose';
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
         fileName: file.name,
         content: uploadedFile,
       },
-      purpose: "ocr"
+      purpose: 'ocr' as FilePurpose,
     });
     
     const signedUrl = await client.files.getSignedUrl({
