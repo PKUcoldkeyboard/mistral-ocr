@@ -66,8 +66,7 @@ export async function POST(request: NextRequest) {
       Bucket: process.env.S3_BUCKET_NAME,
       Key: fileName,
       Body: buffer,
-      ContentType: file.type,
-      ACL: process.env.S3_ACL || 'public-read', // Make the file publicly accessible, configurable
+      ContentType: file.type
     };
 
     await s3Client.send(new PutObjectCommand(bucketParams));

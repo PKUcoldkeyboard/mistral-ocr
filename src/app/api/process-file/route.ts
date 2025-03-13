@@ -1,10 +1,6 @@
 // app/api/process-file/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { Mistral } from '@mistralai/mistralai';
-import { writeFile } from 'fs/promises';
-import { join } from 'path';
-import { mkdir } from 'fs/promises';
-import fs from 'fs';
 import { FilePurpose } from '@mistralai/mistralai/models/components/filepurpose';
 
 export async function POST(request: NextRequest) {
@@ -20,28 +16,16 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Create temp directory if it doesn't exist
-    const tempDir = join(process.cwd(), 'tmp');
-    try {
-      await mkdir(tempDir, { recursive: true });
-    } catch (error) {
-      // Directory might already exist
-      throw error;
-    }
-    
-    // Save file temporarily
-    const filePath = join(tempDir, file.name);
+    // 直接从文件获取 buffer，不写入文件系统
     const buffer = Buffer.from(await file.arrayBuffer());
-    await writeFile(filePath, buffer);
     
-    // Process with Mistral API
+    // 处理 Mistral API
     const client = new Mistral({ apiKey });
     
-    const uploadedFile = fs.readFileSync(filePath);
     const uploadedPdf = await client.files.upload({
       file: {
         fileName: file.name,
-        content: uploadedFile,
+        content: buffer,
       },
       purpose: 'ocr' as FilePurpose,
     });
@@ -55,15 +39,9 @@ export async function POST(request: NextRequest) {
       document: {
         type: "document_url",
         documentUrl: signedUrl.url,
-      }
+      },
+      includeImageBase64: true
     });
-    
-    // Clean up
-    try {
-      fs.unlinkSync(filePath);
-    } catch (error) {
-      console.error('Error deleting temporary file:', error);
-    }
     
     return NextResponse.json(ocrResponse);
   } catch (error) {

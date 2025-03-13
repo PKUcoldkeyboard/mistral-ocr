@@ -1,5 +1,7 @@
 "use client";
 import React, { useState } from 'react';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -13,6 +15,25 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function Home() {
+  interface ImageData {
+    id: string;
+    top_left_x: number;
+    top_left_y: number;
+    bottom_right_x: number;
+    bottom_right_y: number;
+    imageBase64: string;
+  }
+
+  interface PageData {
+    index: number;
+    markdown: string;
+    images?: ImageData[];
+  }
+
+  interface ResultData {
+    pages: PageData[];
+  }
+
   const [apiKey, setApiKey] = useState("");
   const [pdfUrl, setPdfUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -21,8 +42,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState<{ pages: { index: number, markdown: string }[] } | null>(null);
-  const [translatedResult, setTranslatedResult] = useState<{ pages: { index: number, markdown: string }[] } | null>(null);
+  const [result, setResult] = useState<ResultData | null>(null);
+  const [translatedResult, setTranslatedResult] = useState<ResultData | null>(null);
   const [alert, setAlert] = useState<{ type: 'error' | 'success' | 'warning', message: string } | null>(null);
 
   // 新增翻译引擎相关状态
@@ -70,10 +91,7 @@ export default function Home() {
       setImageFile(e.target.files[0]);
     }
   };
-  const validatePdfUrl = (url: string) => {
-    // Check if URL ends with .pdf
-    return url.trim().toLowerCase().endsWith('.pdf');
-  };
+
   const uploadImageToS3 = async () => {
     if (!imageFile) return;
 
@@ -114,15 +132,7 @@ export default function Home() {
       });
       return;
     }
-    // Additional PDF validation for URL
-    if (type === 'url' && !validatePdfUrl(pdfUrl)) {
-      setAlert({
-        type: 'error',
-        message: 'Invalid URL. Please enter a direct link to a PDF file (must end with .pdf)'
-      });
-      setTimeout(() => setAlert(null), 5000); // Auto dismiss after 5 seconds
-      return;
-    }
+
     setLoading(true);
     setAlert(null); // Clear any existing alerts
 
@@ -261,31 +271,72 @@ export default function Home() {
     }
   };
 
-  const downloadMarkdown = (translated = false) => {
+  const downloadMarkdownWithImages = async (translated = false) => {
     const contentToDownload = translated ? translatedResult : result;
     if (!contentToDownload) return;
 
-    // Concatenate all markdown content
-    const markdownContent = contentToDownload.pages
-      .sort((a, b) => a.index - b.index)
-      .map(page => `## Page ${page.index}\n\n${page.markdown}`)
-      .join('\n\n---\n\n');
+    setLoading(true);
+    try {
+      const zip = new JSZip();
 
-    // Create a blob and download link
-    const blob = new Blob([markdownContent], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = translated ? 'ocr-result-translated.md' : 'ocr-result.md';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+      // 创建一个数组来存储所有的markdown内容
+      const markdownContents: string[] = [];
 
-    toast("Download Started", {
-      description: `Your ${translated ? 'translated ' : ''}markdown file is being downloaded`
-    });
+      // 处理每一页
+      contentToDownload.pages
+        .sort((a, b) => a.index - b.index)
+        .forEach(page => {
+          const pageMarkdown = `## Page ${page.index}\n\n${page.markdown}`;
+          markdownContents.push(pageMarkdown);
+        });
+      
+      if (result) {
+        result.pages
+          .forEach(page => {
+              // 处理图片（如果存在）
+              if (page.images && page.images.length > 0) {
+                // 处理每个图片
+                page.images.forEach((img) => {
+                  // 将base64转换为二进制
+                  if (img.imageBase64) {
+                    // 如果存在数据URL前缀，则移除
+                    const base64Data = img.imageBase64.includes('base64,')
+                      ? img.imageBase64.split('base64,')[1]
+                      : img.imageBase64;
+    
+                    // 将图片添加到zip的根目录中
+                    zip.file(img.id, base64Data, { base64: true });
+                  }
+                });
+              }
+          })
+      }
+
+      // 合并所有markdown内容
+      const combinedMarkdown = markdownContents.join('\n\n---\n\n');
+
+      // 将合并后的markdown文件添加到zip的根目录
+      zip.file("document.md", combinedMarkdown);
+
+      // 生成zip文件
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+
+      // 保存zip文件
+      saveAs(zipBlob, translated ? 'ocr-results-translated.zip' : 'ocr-results.zip');
+
+      toast("Download Started", {
+        description: `Your ${translated ? 'translated ' : ''}document with images is being downloaded as a zip file`
+      });
+    } catch (error) {
+      console.error("Error creating zip file:", error);
+      toast("Download Error", {
+        description: "Failed to create zip file. " + (error instanceof Error ? error.message : "Unknown error")
+      });
+    } finally {
+      setLoading(false);
+    }
   };
+
   const clearFile = () => {
     setFile(null);
   };
@@ -517,7 +568,6 @@ export default function Home() {
                     onChange={(e) => setPdfUrl(e.target.value)}
                     className="bg-gray-50 text-sm"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Enter a direct link to a publicly accessible PDF file (must end with .pdf)</p>
                 </div>
                 <motion.div
                   whileTap={{ scale: 0.98 }}
@@ -559,17 +609,17 @@ export default function Home() {
                       </label>
                     </div>
                   ) : (
-                    <div className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <FileUp className="h-8 w-8 text-[#4285F4] mr-3" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium truncate">{file.name}</p>
-                        <p className="text-xs text-gray-500">{(file.size / 1024).toFixed(1)} KB</p>
+                    <div className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200 min-w-0">
+                      <FileUp className="h-8 w-8 text-[#4285F4] mr-3 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate max-w-full" title={file.name}>{file.name}</p>
+                        <p className="text-xs text-gray-500 truncate">{(file.size / 1024).toFixed(1)} KB</p>
                       </div>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={clearFile}
-                        className="text-gray-500 hover:text-gray-700"
+                        className="text-gray-500 hover:text-gray-700 flex-shrink-0 ml-2"
                       >
                         Remove
                       </Button>
@@ -621,11 +671,11 @@ export default function Home() {
                   ) : (
                     <div>
                       <Label className="text-sm font-medium mb-1 block">Selected Image</Label>
-                      <div className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200 min-w-0">
                         <Image className="h-8 w-8 text-[#4285F4] mr-3" />
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{imageFile.name}</p>
-                          <p className="text-xs text-gray-500">{(imageFile.size / 1024).toFixed(1)} KB</p>
+                          <p className="text-xs text-gray-500 truncate">{(imageFile.size / 1024).toFixed(1)} KB</p>
                         </div>
                         <Button
                           variant="ghost"
@@ -752,29 +802,32 @@ export default function Home() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => downloadMarkdown(false)}
+                          onClick={() => downloadMarkdownWithImages(false)}
                           className="flex items-center gap-1 border-[#34A853] text-[#34A853] hover:bg-[#34A853]/10"
+                          disabled={loading}
                         >
-                          <Download size={14} /> Original
+                          {loading ? (<Loader2 className="mr-1 h-3 w-3 animate-spin" />) : (<Download size={14} />)} Original
                         </Button>
 
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => downloadMarkdown(true)}
+                          onClick={() => downloadMarkdownWithImages(true)}
                           className="flex items-center gap-1 border-[#4285F4] text-[#4285F4] hover:bg-[#4285F4]/10"
+                          disabled={loading}
                         >
-                          <Download size={14} /> Translated
+                          {loading ? (<Loader2 className="mr-1 h-3 w-3 animate-spin" />) : (<Download size={14} />)} Translated
                         </Button>
                       </div>
                     ) : (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => downloadMarkdown(false)}
+                        onClick={() => downloadMarkdownWithImages(false)}
                         className="flex items-center gap-1 border-[#34A853] text-[#34A853] hover:bg-[#34A853]/10"
+                        disabled={loading}
                       >
-                        <Download size={14} /> Download Markdown
+                        {loading ? (<Loader2 className="mr-1 h-3 w-3 animate-spin" />) : (<Download size={14} />)} Download Zip
                       </Button>
                     )}
                   </div>

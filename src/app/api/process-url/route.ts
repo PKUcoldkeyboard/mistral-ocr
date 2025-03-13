@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
         type: "document_url",
         documentUrl
       },
-      includeImageBase64: false
+      includeImageBase64: true
     });
     
     return NextResponse.json(ocrResponse);
