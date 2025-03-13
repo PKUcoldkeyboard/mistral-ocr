@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-export const runtime = 'edge'; 
+export const runtime = 'edge';
 
 export async function POST(req: NextRequest) {
     try {
@@ -25,8 +25,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 将内容分割成页面
-        const pages = content.split('\n\n---\n\n');
-        let translatedPages: string[] = [];
+        let translatedContent: string;
 
         if (engine === 'openai') {
             if (!openaiApiKey) {
@@ -42,9 +41,8 @@ export async function POST(req: NextRequest) {
                 baseURL: openaiBaseUrl || 'https://api.openai.com/v1',
             });
 
-            // 为每个页面创建翻译任务
-            const translationPromises = pages.map(async (page: string) => {
-                const systemPrompt = `You are a translation engine, you can only translate text and cannot interpret it, and do not explain. 
+
+            const systemPrompt = `You are a translation engine, you can only translate text and cannot interpret it, and do not explain. 
         Translate the text to ${getLanguageName(targetLanguage)}, please do not explain any sentences, just translate or leave them as they are. 
         Retain all spaces and line breaks in the original text. 
         Please do not wrap the code in code blocks, I will handle it myself. 
@@ -52,20 +50,17 @@ export async function POST(req: NextRequest) {
         If the original text is already in ${getLanguageName(targetLanguage)}, please do not skip the translation and directly output the original text. 
         This is the content you need to translate: `;
 
-                const completion = await openai.chat.completions.create({
-                    model: openaiModel,
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: page }
-                    ],
-                    temperature: 0.6,
-                });
-
-                return completion.choices[0]?.message?.content || 'Translation failed';
+            const completion = await openai.chat.completions.create({
+                model: openaiModel,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: content }
+                ],
+                temperature: 0.6,
             });
 
-            // 等待所有翻译完成
-            translatedPages = await Promise.all(translationPromises);
+            translatedContent = completion.choices[0]?.message?.content || 'Translation failed';
+
         } else if (engine === 'deeplx') {
             if (!deeplxApiKey) {
                 return NextResponse.json(
@@ -75,31 +70,49 @@ export async function POST(req: NextRequest) {
             }
 
             // 使用DeepL X进行翻译
-            const translationPromises = pages.map(async (page: string) => {
-                const response = await fetch(`https://api.deeplx.org/${deeplxApiKey}/translate`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        text: page,
-                        source_lang: 'auto',
-                        target_lang: targetLanguage,
-                    }),
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.text();
-                    console.error('DeepL translation error:', errorData);
-                    throw new Error(`DeepL translation failed: ${response.status}`);
-                }
-
-                const data = await response.json();
-                return data.data || 'Translation failed';
+            const response = await fetch(`https://api.deeplx.org/${deeplxApiKey}/translate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    text: content,
+                    source_lang: 'auto',
+                    target_lang: targetLanguage,
+                }),
             });
 
-            // 等待所有翻译完成
-            translatedPages = await Promise.all(translationPromises);
+            if (!response.ok) {
+                const errorData = await response.text();
+                console.error('DeepL translation error:', errorData);
+                throw new Error(`DeepL translation failed: ${response.status}`);
+            }
+
+            const data = await response.json();
+            translatedContent = data.data || 'Translation failed';
+
+        } else if (engine === 'fanyimao') {
+            const response = await fetch('https://freeapi.fanyimao.cn/translate?token=tr-98584e33-f387-42cc-a467-f02513bd400d', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    text: content,
+                    source_lang: 'auto',
+                    target_lang: targetLanguage,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.text();
+                console.error('Fanyimao translation error:', errorData);
+                throw new Error(`Fanyimao translation failed: ${response.status}`);
+            }
+
+            const data = await response.json();
+            translatedContent = data.data || 'Translation failed';
+
         } else {
             return NextResponse.json(
                 { error: 'Invalid translation engine' },
@@ -107,7 +120,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        return NextResponse.json({ translatedPages });
+        return NextResponse.json({ translatedContent });
     } catch (error) {
         console.error('Translation error:', error);
         return NextResponse.json(

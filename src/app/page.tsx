@@ -47,7 +47,7 @@ export default function Home() {
   const [alert, setAlert] = useState<{ type: 'error' | 'success' | 'warning', message: string } | null>(null);
 
   // 新增翻译引擎相关状态
-  const [translationEngine, setTranslationEngine] = useState<'openai' | 'deeplx'>('openai');
+  const [translationEngine, setTranslationEngine] = useState<'openai' | 'deeplx'>('deeplx');
   const [openaiApiKey, setOpenaiApiKey] = useState("");
   const [openaiBaseUrl, setOpenaiBaseUrl] = useState("https://api.openai.com/v1");
   const [openaiModel, setOpenaiModel] = useState("gpt-4o");
@@ -208,7 +208,7 @@ export default function Home() {
   const translateMarkdown = async () => {
     if (!result) return;
 
-    // 验证翻译引擎所需的API密钥
+    // Validate translation engine API keys
     if (translationEngine === 'openai' && !openaiApiKey) {
       toast("API Key Required", {
         description: "Please enter your OpenAI API key"
@@ -222,46 +222,79 @@ export default function Home() {
     }
 
     setTranslating(true);
-    try {
-      // 创建结果的深拷贝以生成翻译版本
-      const originalContent = result.pages.map(page => page.markdown).join('\n\n---\n\n');
 
-      // 调用翻译API
-      const response = await fetch('/api/translate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          engine: translationEngine,
-          openaiApiKey: translationEngine === 'openai' ? openaiApiKey : undefined,
-          openaiBaseUrl: translationEngine === 'openai' ? openaiBaseUrl : undefined,
-          openaiModel: translationEngine === 'openai' ? openaiModel : undefined,
-          deeplxApiKey: translationEngine === 'deeplx' ? deeplxApiKey : undefined,
-          content: originalContent,
-          targetLanguage: targetLanguage
-        }),
+    try {
+      // Initialize progress tracking
+      const totalPages = result.pages.length;
+      let completedPages = 0;
+
+      // Create an array to store translated pages
+      const translatedPages = Array(totalPages).fill(null);
+
+      // Show initial progress toast
+      const toastId = toast("Translation Started", {
+        description: `Translating page 1 of ${totalPages}...`,
+        duration: 5000,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to translate content");
+      // Process pages sequentially to avoid overwhelming the server
+      for (let i = 0; i < totalPages; i++) {
+        const page = result.pages[i];
+
+        // Update progress toast
+        toast(`Translating Document`, {
+          id: toastId,
+          description: `Translating page ${i + 1} of ${totalPages}...`,
+          duration: 5000,
+        });
+
+        // Send translation request for this page only
+        const response = await fetch('/api/translate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            engine: translationEngine,
+            openaiApiKey: translationEngine === 'openai' ? openaiApiKey : undefined,
+            openaiBaseUrl: translationEngine === 'openai' ? openaiBaseUrl : undefined,
+            openaiModel: translationEngine === 'openai' ? openaiModel : undefined,
+            deeplxApiKey: translationEngine === 'deeplx' ? deeplxApiKey : undefined,
+            content: page.markdown,  // Send only one page's content
+            targetLanguage: targetLanguage
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`Failed to translate page ${i + 1}: ${errorData.message || "Unknown error"}`);
+        }
+
+        const data = await response.json();
+
+        // Store the translated content
+        translatedPages[i] = {
+          index: page.index,
+          markdown: data.translatedContent || `Translation failed for page ${page.index}`
+        };
+
+        // Update completed counter
+        completedPages++;
+
+        // Optional: add a small delay between requests to avoid rate limiting
+        if (i < totalPages - 1) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
       }
 
-      const data = await response.json();
-
-      // 将翻译内容拆分回与原始结构匹配的页面
-      const translatedPages = result.pages.map((page, index) => {
-        return {
-          index: page.index,
-          markdown: data.translatedPages[index] || "Translation failed for this page"
-        };
-      });
-
+      // Set the final result
       setTranslatedResult({ pages: translatedPages });
+
       toast("Translation Complete", {
-        description: "Document has been translated successfully"
+        id: toastId,
+        description: `Successfully translated ${completedPages} of ${totalPages} pages`,
       });
+
     } catch (error) {
       toast("Translation Error", {
         description: error instanceof Error ? error.message : "An unknown error occurred"
@@ -270,7 +303,6 @@ export default function Home() {
       setTranslating(false);
     }
   };
-
   const downloadMarkdownWithImages = async (translated = false) => {
     const contentToDownload = translated ? translatedResult : result;
     if (!contentToDownload) return;
@@ -289,26 +321,26 @@ export default function Home() {
           const pageMarkdown = `## Page ${page.index}\n\n${page.markdown}`;
           markdownContents.push(pageMarkdown);
         });
-      
+
       if (result) {
         result.pages
           .forEach(page => {
-              // 处理图片（如果存在）
-              if (page.images && page.images.length > 0) {
-                // 处理每个图片
-                page.images.forEach((img) => {
-                  // 将base64转换为二进制
-                  if (img.imageBase64) {
-                    // 如果存在数据URL前缀，则移除
-                    const base64Data = img.imageBase64.includes('base64,')
-                      ? img.imageBase64.split('base64,')[1]
-                      : img.imageBase64;
-    
-                    // 将图片添加到zip的根目录中
-                    zip.file(img.id, base64Data, { base64: true });
-                  }
-                });
-              }
+            // 处理图片（如果存在）
+            if (page.images && page.images.length > 0) {
+              // 处理每个图片
+              page.images.forEach((img) => {
+                // 将base64转换为二进制
+                if (img.imageBase64) {
+                  // 如果存在数据URL前缀，则移除
+                  const base64Data = img.imageBase64.includes('base64,')
+                    ? img.imageBase64.split('base64,')[1]
+                    : img.imageBase64;
+
+                  // 将图片添加到zip的根目录中
+                  zip.file(img.id, base64Data, { base64: true });
+                }
+              });
+            }
           })
       }
 
