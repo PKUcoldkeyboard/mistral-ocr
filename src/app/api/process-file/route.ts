@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Mistral } from '@mistralai/mistralai';
 import { FilePurpose } from '@mistralai/mistralai/models/components/filepurpose';
 
+export const runtime = 'edge'; 
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
