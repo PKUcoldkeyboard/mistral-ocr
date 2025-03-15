@@ -34,7 +34,14 @@ export default function Home() {
     pages: PageData[];
   }
 
-  const [apiKey, setApiKey] = useState(localStorage.getItem('mistral-api-key') || "");
+  const [apiKey, setApiKey] = useState(() => {
+    // 检查是否在客户端
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('mistral-api-key') || "";
+    }
+    return "";
+  });
+
   const [pdfUrl, setPdfUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState("");
@@ -48,10 +55,30 @@ export default function Home() {
 
   // 新增翻译引擎相关状态
   const [translationEngine, setTranslationEngine] = useState<'openai' | 'deeplx'>('deeplx');
-  const [openaiApiKey, setOpenaiApiKey] = useState(localStorage.getItem('openai-api-key') || "");
-  const [openaiBaseUrl, setOpenaiBaseUrl] = useState(localStorage.getItem('openai-base-url') || "https://api.openai.com/v1");
-  const [openaiModel, setOpenaiModel] = useState(localStorage.getItem('openai-model') || "gpt-4o");
-  const [deeplxApiKey, setDeeplxApiKey] = useState(localStorage.getItem('deeplx-api-key') || "");
+  const [openaiApiKey, setOpenaiApiKey] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('openai-api-key') || "";
+    }
+    return "";
+  });
+  const [openaiBaseUrl, setOpenaiBaseUrl] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('openai-base-url') || "https://api.openai.com/v1";
+    }
+    return "https://api.openai.com/v1";
+  });
+  const [openaiModel, setOpenaiModel] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('openai-model') || "gpt-4o";
+    }
+    return "gpt-4o";
+  });
+  const [deeplxApiKey, setDeeplxApiKey] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('deeplx-api-key') || "";
+    }
+    return "";
+  });
   const [targetLanguage, setTargetLanguage] = useState("ZH"); // 默认目标语言
 
   const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -59,19 +86,27 @@ export default function Home() {
     setApiKey(e.target.value);
   };
   const handleOpenAIKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    localStorage.setItem('openai-api-key', e.target.value);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('openai-api-key', e.target.value);
+    }
     setOpenaiApiKey(e.target.value);
   }
   const handleOpenAIBaseUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    localStorage.setItem('openai-base-url', e.target.value);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('openai-base-url', e.target.value);
+    }
     setOpenaiBaseUrl(e.target.value);
   }
   const handleOpenAIModelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    localStorage.setItem('openai-model', e.target.value);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('openai-model', e.target.value);
+    }
     setOpenaiModel(e.target.value);
   }
   const handleDeeplxKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    localStorage.setItem('deeplx-api-key', e.target.value);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('deeplx-api-key', e.target.value);
+    }
     setDeeplxApiKey(e.target.value);
   }
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
