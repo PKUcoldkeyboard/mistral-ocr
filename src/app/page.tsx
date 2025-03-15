@@ -34,7 +34,7 @@ export default function Home() {
     pages: PageData[];
   }
 
-  const [apiKey, setApiKey] = useState("");
+  const [apiKey, setApiKey] = useState(localStorage.getItem('mistral-api-key') || "");
   const [pdfUrl, setPdfUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState("");
@@ -48,15 +48,32 @@ export default function Home() {
 
   // 新增翻译引擎相关状态
   const [translationEngine, setTranslationEngine] = useState<'openai' | 'deeplx'>('deeplx');
-  const [openaiApiKey, setOpenaiApiKey] = useState("");
-  const [openaiBaseUrl, setOpenaiBaseUrl] = useState("https://api.openai.com/v1");
-  const [openaiModel, setOpenaiModel] = useState("gpt-4o");
-  const [deeplxApiKey, setDeeplxApiKey] = useState("");
+  const [openaiApiKey, setOpenaiApiKey] = useState(localStorage.getItem('openai-api-key') || "");
+  const [openaiBaseUrl, setOpenaiBaseUrl] = useState(localStorage.getItem('openai-base-url') || "https://api.openai.com/v1");
+  const [openaiModel, setOpenaiModel] = useState(localStorage.getItem('openai-model') || "gpt-4o");
+  const [deeplxApiKey, setDeeplxApiKey] = useState(localStorage.getItem('deeplx-api-key') || "");
   const [targetLanguage, setTargetLanguage] = useState("ZH"); // 默认目标语言
 
   const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    localStorage.setItem('mistral-api-key', e.target.value);
     setApiKey(e.target.value);
   };
+  const handleOpenAIKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    localStorage.setItem('openai-api-key', e.target.value);
+    setOpenaiApiKey(e.target.value);
+  }
+  const handleOpenAIBaseUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    localStorage.setItem('openai-base-url', e.target.value);
+    setOpenaiBaseUrl(e.target.value);
+  }
+  const handleOpenAIModelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    localStorage.setItem('openai-model', e.target.value);
+    setOpenaiModel(e.target.value);
+  }
+  const handleDeeplxKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    localStorage.setItem('deeplx-api-key', e.target.value);
+    setDeeplxApiKey(e.target.value);
+  }
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
@@ -503,7 +520,7 @@ export default function Home() {
                         type="password"
                         placeholder="Enter your OpenAI API key"
                         value={openaiApiKey}
-                        onChange={(e) => setOpenaiApiKey(e.target.value)}
+                        onChange={handleOpenAIKeyChange}
                         className="bg-white text-sm"
                       />
                     </div>
@@ -513,7 +530,7 @@ export default function Home() {
                         id="openaiBaseUrl"
                         placeholder="https://api.openai.com/v1"
                         value={openaiBaseUrl}
-                        onChange={(e) => setOpenaiBaseUrl(e.target.value)}
+                        onChange={handleOpenAIBaseUrlChange}
                         className="bg-white text-sm"
                       />
                       <p className="text-xs text-gray-500 mt-1">For custom endpoints or OpenAI proxies</p>
@@ -524,7 +541,7 @@ export default function Home() {
                         id="openaiModel"
                         placeholder="gpt-4o"
                         value={openaiModel}
-                        onChange={(e) => setOpenaiModel(e.target.value)}
+                        onChange={handleOpenAIModelChange}
                         className="bg-white text-sm"
                       />
                       <p className="text-xs text-gray-500 mt-1">For custom models or versions</p>
@@ -538,7 +555,7 @@ export default function Home() {
                       type="password"
                       placeholder="Enter your DeepL X API key"
                       value={deeplxApiKey}
-                      onChange={(e) => setDeeplxApiKey(e.target.value)}
+                      onChange={handleDeeplxKeyChange}
                       className="bg-white text-sm"
                     />
                   </div>
