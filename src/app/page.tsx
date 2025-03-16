@@ -7,12 +7,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, FileUp, Globe, Image, Download, Key, HelpCircle, Info, Languages } from "lucide-react";
+import { Loader2, FileUp, Globe, Image as ImageIcon, Download, Key, HelpCircle, Info, Languages } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import Link from 'next/link';
+import Image from 'next/image';
 
 export default function Home() {
   interface ImageData {
@@ -493,6 +495,17 @@ export default function Home() {
           </CardHeader>
 
           <CardContent className="p-4">
+            <div className="w-full mt-3">
+              <Link href="https://www.digitalocean.com/?refcode=c34339345348&utm_campaign=Referral_Invite&utm_medium=Referral_Program&utm_source=badge">
+                <Image
+                  src="https://web-platforms.sfo2.cdn.digitaloceanspaces.com/WWW/Badge%202.svg"
+                  alt="DigitalOcean Referral Badge"
+                  width={256}
+                  height={144}
+                  className='mx-auto'
+                />
+              </Link>
+            </div>
             <div className="mb-4">
               <div className="flex items-center justify-between mb-1">
                 <Label htmlFor="apiKey" className="text-sm font-medium flex items-center gap-1">
@@ -638,7 +651,7 @@ export default function Home() {
                   value="image"
                   className="flex items-center gap-1 data-[state=active]:bg-[#4285F4] data-[state=active]:text-white"
                 >
-                  <Image size={14} /> Image
+                  <ImageIcon size={14} /> Image
                 </TabsTrigger>
               </TabsList>
 
@@ -736,7 +749,7 @@ export default function Home() {
                       <div className="flex items-center justify-center w-full">
                         <label htmlFor="imageFile" className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 border-gray-300 hover:bg-gray-100">
                           <div className="flex flex-col items-center justify-center pt-4 pb-4">
-                            <Image className="w-7 h-7 mb-2 text-[#4285F4]" />
+                            <ImageIcon className="w-7 h-7 mb-2 text-[#4285F4]" />
                             <p className="mb-1 text-sm text-gray-600">
                               <span className="font-semibold">Click to upload</span> or drag and drop
                             </p>
@@ -756,7 +769,7 @@ export default function Home() {
                     <div>
                       <Label className="text-sm font-medium mb-1 block">Selected Image</Label>
                       <div className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200 min-w-0">
-                        <Image className="h-8 w-8 text-[#4285F4] mr-3" />
+                        <ImageIcon className="h-8 w-8 text-[#4285F4] mr-3" />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{imageFile.name}</p>
                           <p className="text-xs text-gray-500 truncate">{(imageFile.size / 1024).toFixed(1)} KB</p>
